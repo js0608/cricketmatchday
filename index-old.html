@@ -1076,10 +1076,6 @@
       { name: "Darsh Shah", captain: false, vc: false, man12: true }
     ];
 
-    /*
-    { name: "Karamveer K", captain: false, vc: false, man12: true }
-    */
-
     let squad = JSON.parse(localStorage.getItem('gl_squad') || JSON.stringify(defaultSquad));
     let sponsorData = JSON.parse(localStorage.getItem('gl_sponsors') || JSON.stringify(HARDCODED_SPONSORS));
     let logoData = localStorage.getItem('gl_logo') || HARDCODED_LOGO;
@@ -1248,8 +1244,6 @@
 
     function initPhotoInteraction() {
       const wrap = document.getElementById('photoImgWrap');
-
-      /* ── MOUSE (desktop) ── */
       wrap.addEventListener('mousedown', e => {
         state.dragging = true; state.lastX = e.clientX; state.lastY = e.clientY;
         wrap.classList.add('grabbing'); e.preventDefault();
@@ -1265,82 +1259,33 @@
         const r = wrap.getBoundingClientRect();
         zoomAround(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 0.1 : -0.1);
       }, { passive: false });
-
-      /* ── TOUCH (mobile) — proper pinch-to-zoom ── */
       wrap.addEventListener('touchstart', e => {
-        e.preventDefault();
-        if (e.touches.length === 1) {
-          state.pinching = false;
-          state.lastX = e.touches[0].clientX;
-          state.lastY = e.touches[0].clientY;
-        } else if (e.touches.length === 2) {
+        if (e.touches.length === 1) { state.pinching = false; state.lastX = e.touches[0].clientX; state.lastY = e.touches[0].clientY; }
+        else if (e.touches.length === 2) {
           state.pinching = true;
-          const dx = e.touches[0].clientX - e.touches[1].clientX;
-          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
           state.lastDist = Math.hypot(dx, dy);
           state.lastMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
           state.lastMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
         }
+        e.preventDefault();
       }, { passive: false });
-
       wrap.addEventListener('touchmove', e => {
         e.preventDefault();
-        const rect = wrap.getBoundingClientRect();
-
         if (e.touches.length === 1 && !state.pinching) {
-          /* single finger — pan */
-          const dx = e.touches[0].clientX - state.lastX;
-          const dy = e.touches[0].clientY - state.lastY;
-          state.tx += dx;
-          state.ty += dy;
-          state.lastX = e.touches[0].clientX;
-          state.lastY = e.touches[0].clientY;
-          applyTransform();
-
+          state.tx += e.touches[0].clientX - state.lastX; state.ty += e.touches[0].clientY - state.lastY;
+          state.lastX = e.touches[0].clientX; state.lastY = e.touches[0].clientY; applyTransform();
         } else if (e.touches.length === 2) {
-          /* two fingers — pinch zoom + pan simultaneously */
-          const dx = e.touches[0].clientX - e.touches[1].clientX;
-          const dy = e.touches[0].clientY - e.touches[1].clientY;
+          const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
           const dist = Math.hypot(dx, dy);
-          const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-          const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-
-          /* zoom centered on pinch midpoint */
-          const pinchRatio = dist / state.lastDist;
-          const newScale = Math.max(0.4, Math.min(6, state.scale * pinchRatio));
-          const scaleRatio = newScale / state.scale;
-
-          /* midpoint relative to wrap */
-          const cx = midX - rect.left;
-          const cy = midY - rect.top;
-
-          state.tx = cx + (state.tx - cx) * scaleRatio;
-          state.ty = cy + (state.ty - cy) * scaleRatio;
-          state.scale = newScale;
-
-          /* also pan with finger midpoint movement */
-          state.tx += midX - state.lastMidX;
-          state.ty += midY - state.lastMidY;
-
-          state.lastDist = dist;
-          state.lastMidX = midX;
-          state.lastMidY = midY;
-
-          applyTransform();
+          const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2, midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          const r = wrap.getBoundingClientRect();
+          zoomAround(midX - r.left, midY - r.top, (dist / state.lastDist - 1) * state.scale);
+          state.tx += midX - state.lastMidX; state.ty += midY - state.lastMidY; applyTransform();
+          state.lastDist = dist; state.lastMidX = midX; state.lastMidY = midY;
         }
       }, { passive: false });
-
-      wrap.addEventListener('touchend', e => {
-        if (e.touches.length === 0) {
-          state.pinching = false;
-          state.dragging = false;
-        } else if (e.touches.length === 1) {
-          /* lifted one finger — switch back to pan mode */
-          state.pinching = false;
-          state.lastX = e.touches[0].clientX;
-          state.lastY = e.touches[0].clientY;
-        }
-      }, { passive: true });
+      wrap.addEventListener('touchend', e => { if (e.touches.length < 2) state.pinching = false; }, { passive: true });
     }
 
     function handlePlayerPhoto(e) {
@@ -1730,40 +1675,14 @@
       canvasDrawSquad(ctx, squad);
       canvasDrawFooter(ctx, [sp0, sp1, sp2]);
 
-      const filename = `cdcl-matchday-${Date.now()}.jpg`;
-
-      canvas.toBlob(async blob => {
-        const pw = document.getElementById('photoImgWrap');
-
-        /* ── Mobile: use Web Share API → saves directly to Photos app ── */
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        if (isMobile && navigator.canShare) {
-          try {
-            const file = new File([blob], filename, { type: 'image/jpeg' });
-            if (navigator.canShare({ files: [file] })) {
-              await navigator.share({
-                files: [file],
-                title: 'CDCL Matchday Poster',
-              });
-              /* Share sheet opened — user can save to Photos from there */
-              if (pw && pw.style.display !== 'none') document.getElementById('photoControls').style.display = 'flex';
-              btn.disabled = false; btn.textContent = '↓ Download JPEG';
-              return;
-            }
-          } catch (err) {
-            if (err.name !== 'AbortError') console.warn('Share failed, falling back to download:', err);
-            /* If user cancelled or share failed, fall through to regular download */
-          }
-        }
-
-        /* ── Desktop / fallback: regular download ── */
-        const url = URL.createObjectURL(blob);
+      canvas.toBlob(blob => {
         const a = document.createElement('a');
-        a.download = filename;
-        a.href = url;
+        a.download = `cdcl-matchday-${Date.now()}.jpg`;
+        a.href = URL.createObjectURL(blob);
         a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 
+        const pw = document.getElementById('photoImgWrap');
         if (pw && pw.style.display !== 'none') document.getElementById('photoControls').style.display = 'flex';
         btn.disabled = false; btn.textContent = '↓ Download JPEG';
       }, 'image/jpeg', 1.00);
