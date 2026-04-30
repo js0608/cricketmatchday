@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <!-- CHANGED: added maximum-scale and user-scalable for mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CDCL Matchday Poster Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      /* MOBILE: remove tap highlight flash */
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      height: 100%;
+      overflow: hidden;
+      background: #050810;
+      color: #e8eaf0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .app-shell {
+      display: flex;
+      height: 100vh;
+      /* MOBILE: use dvh for correct height on iOS with address bar */
+      height: 100dvh;
+    }
+
+    /* ─────────────────────────────────────────────────
+       MOBILE TAB BAR — only visible on small screens
+       Desktop: hidden, sidebar+preview shown side by side
+    ───────────────────────────────────────────────── */
+    .tab-bar {
+      display: none;
+      /* hidden on desktop */
+    }
+
+    @media (max-width: 768px) {
+
+      /* Stack vertically on mobile */
+      .app-shell {
+        flex-direction: column;
+      }
+
+      /* Show tab bar */
+      .tab-bar {
+        display: flex;
+        flex-shrink: 0;
+        background: #0a0e1c;
+        border-bottom: 2px solid #181e38;
+        z-index: 50;
+      }
+
+      /* Sidebar becomes full-width scrollable panel */
+      .sidebar {
+        width: 100% !important;
+        min-width: unset !important;
+        border-right: none !important;
+        flex: 1;
+        min-height: 0;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Preview area becomes full-width */
+      .preview-area {
+        flex: 1;
+        min-height: 0;
+        padding: 10px;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Hide/show panels via JS class toggle */
+      .mob-hidden {
+        display: none !important;
+      }
+
+      /* Bigger tap targets for all inputs */
+      .ctrl {
+        font-size: 14px !important;
+        padding: 9px 10px !important;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      select.ctrl {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23c9a84c' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-color: #0c1020;
+        padding-right: 30px !important;
+      }
+
+      /* Bigger squad inputs */
+      .squad-input {
+        font-size: 13px !important;
+        padding: 7px 6px !important;
+      }
+
+      /* Bigger role buttons */
+      .role-btn {
+        padding: 6px 6px !important;
+        min-width: 30px;
+        font-size: 9px !important;
+      }
+
+      /* Bigger upload zones */
+      .upload-zone {
+        padding: 14px 10px !important;
+      }
+
+      .upload-zone p {
+        font-size: 11px !important;
+        line-height: 1.5;
+      }
+
+      /* Taller download button */
+      .download-btn {
+        padding: 14px !important;
+        font-size: 16px !important;
+        -webkit-appearance: none;
+      }
+    }
+
+    /* ─── Tab button styles ─── */
+    .tab-btn {
+      flex: 1;
+      padding: 12px 4px;
+      font-family: 'Oswald', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #3a4a6a;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+    }
+
+    .tab-btn.active {
+      color: #c9a84c;
+      border-bottom-color: #c9a84c;
+    }
+
+    /* ─── SIDEBAR ─── */
+    .sidebar {
+      width: 300px;
+      min-width: 300px;
+      background: #0a0e1c;
+      border-right: 1px solid #181e38;
+      overflow-y: auto;
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sidebar-title {
+      font-family: 'Oswald', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: #c9a84c;
+      letter-spacing: 3px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #181e38;
+      text-transform: uppercase;
+    }
+
+    .section-label {
+      font-size: 8px;
+      font-weight: 600;
+      color: #2e3a5e;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin-bottom: 4px;
+    }
+
+    .input-group label {
+      font-size: 10px;
+      color: #5a6a8a;
+    }
+
+    .ctrl {
+      background: #0c1020;
+      border: 1px solid #181e38;
+      border-radius: 4px;
+      color: #e8eaf0;
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      padding: 5px 7px;
+      width: 100%;
+      outline: none;
+    }
+
+    .ctrl:focus {
+      border-color: #c9a84c;
+    }
+
+    .ctrl-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+    }
+
+    .squad-row {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      margin-bottom: 2px;
+    }
+
+    .squad-num {
+      font-size: 8px;
+      color: #2e3a5e;
+      width: 13px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .squad-input {
+      flex: 1;
+      background: #0c1020;
+      border: 1px solid #181e38;
+      border-radius: 3px;
+      color: #e8eaf0;
+      font-size: 10px;
+      padding: 3px 5px;
+      outline: none;
+    }
+
+    .squad-input:focus {
+      border-color: #c9a84c;
+    }
+
+    .role-btn {
+      font-size: 7px;
+      padding: 2px 4px;
+      border-radius: 2px;
+      border: 1px solid #181e38;
+      background: transparent;
+      color: #5a6a8a;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .role-btn.c-active {
+      background: #c9a84c;
+      border-color: #c9a84c;
+      color: #000;
+      font-weight: 700;
+    }
+
+    .role-btn.vc-active {
+      background: #5a4a1a;
+      border-color: #c9a84c;
+      color: #c9a84c;
+      font-weight: 700;
+    }
+
+    .upload-zone {
+      border: 1px dashed #181e38;
+      border-radius: 5px;
+      padding: 8px;
+      text-align: center;
+      cursor: pointer;
+      background: #0a0e1c;
+    }
+
+    .upload-zone:hover {
+      border-color: #c9a84c;
+    }
+
+    .upload-zone input {
+      display: none;
+    }
+
+    .upload-zone p {
+      font-size: 9px;
+      color: #2e3a5e;
+    }
+
+    .upload-thumb {
+      width: 100%;
+      height: 44px;
+      object-fit: contain;
+      border-radius: 3px;
+      margin-top: 3px;
+      display: none;
+    }
+
+    .sponsor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 5px;
+    }
+
+    .sp-thumb {
+      width: 100%;
+      height: 30px;
+      object-fit: contain;
+      margin-top: 3px;
+      display: none;
+    }
+
+    .download-btn {
+      width: 100%;
+      padding: 11px;
+      background: linear-gradient(135deg, #a87820, #e8c96a);
+      border: none;
+      border-radius: 5px;
+      color: #050810;
+      font-family: 'Oswald', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      cursor: pointer;
+      margin-top: 4px;
+      text-transform: uppercase;
+    }
+
+    .download-btn:hover {
+      opacity: .88;
+    }
+
+    .download-btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    /* ─── PREVIEW ─── */
+    .preview-area {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 16px;
+      overflow: auto;
+      background: #030508;
+    }
+
+    .poster-wrap {
+      transform-origin: top center;
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════
+   POSTER  1080 × 1350
+═══════════════════════════ */
+    #poster {
+      width: 1080px;
+      height: 1350px;
+      position: relative;
+      overflow: hidden;
+      background: #07090f;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .bg-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── HEADER: fixed 310px, everything absolutely positioned ─── */
+    .poster-header {
+      height: 310px;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 2;
+      overflow: hidden;
+    }
+
+    .hdr-bg {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, #090f22 0%, #090f22 52%, transparent 100%);
+      z-index: 0;
+    }
+
+    .hdr-top-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, transparent, #c9a84c 22%, #f0d878 50%, #c9a84c 78%, transparent);
+      z-index: 5;
+    }
+
+    /* TOP-LEFT LOGO */
+    .hdr-logo-topleft {
+      position: absolute;
+      top: 18px;
+      left: 24px;
+      width: 108px;
+      height: 108px;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hdr-logo-topleft img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 0 18px rgba(201, 168, 76, 0.65));
+    }
+
+    /* CDCL label — top center, same style as datetime */
+    .cdcl-label {
+      position: absolute;
+      top: 16px;
+      left: 0;
+      right: 0;
+      font-family: 'Oswald', sans-serif;
+      font-size: 18px;
+      letter-spacing: 3px;
+      color: #c9a84c;
+      font-weight: 600;
+      text-transform: uppercase;
+      text-align: center;
+      z-index: 3;
+    }
+
+    .match-sublabel {
+      position: absolute;
+      top: 42px;
+      left: 0;
+      right: 0;
+      font-family: 'Oswald', sans-serif;
+      font-size: 16px;
+      letter-spacing: 2px;
+      color: #c9a84c;
+      font-weight: 400;
+      text-transform: uppercase;
+      text-align: center;
+      z-index: 3;
+      opacity: 0.8;
+    }
+
+    /* VS BLOCK — occupies header minus top labels and bottom details */
+    .vs-block {
+      position: absolute;
+      top: 56px;
+      left: 0;
+      right: 0;
+      bottom: 72px;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 40px;
+    }
+
+    .team-col {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .team-col.left {
+      justify-content: flex-end;
+      padding-right: 18px;
+      overflow: hidden;
+    }
+
+    .team-col.right {
+      justify-content: flex-start;
+      padding-left: 18px;
+      overflow: hidden;
+    }
+
+    .team-name-text {
+      font-family: 'Oswald', sans-serif;
+      font-weight: 700;
+      color: #c9a84c;
+      line-height: 1.05;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .team-name-line {
+      display: block;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .vs-pill {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      gap: 6px;
+      width: 70px;
+    }
+
+    .vs-line {
+      width: 1px;
+      height: 44px;
+      background: linear-gradient(to bottom, transparent, #c9a84c 50%, transparent);
+    }
+
+    .vs-text {
+      font-family: 'Oswald', sans-serif;
+      font-weight: 700;
+      font-size: 22px;
+      color: #c9a84c;
+      letter-spacing: 5px;
+    }
+
+    /* DETAILS STRIP — two lines, anchored to bottom of header */
+    .hdr-details-strip {
+      position: absolute;
+      bottom: 10px;
+      left: 0;
+      right: 0;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .hdr-detail-ground {
+      font-family: 'Oswald', sans-serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: #c9a84c;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .hdr-detail-datetime {
+      font-family: 'Oswald', sans-serif;
+      font-size: 18px;
+      font-weight: 400;
+      color: #c9a84c;
+      letter-spacing: 2px;
+      text-align: center;
+      line-height: 1.2;
+      opacity: 0.8;
+    }
+
+    /* ─── MAIN ─── */
+    .poster-main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+      position: relative;
+      z-index: 2;
+    }
+
+    .panel-divider {
+      width: 1px;
+      flex-shrink: 0;
+      background: linear-gradient(to bottom, transparent 0%, rgba(201, 168, 76, 0.3) 10%, rgba(201, 168, 76, 0.3) 90%, transparent 100%);
+      z-index: 3;
+    }
+
+    /* SQUAD */
+    .squad-panel {
+      width: 370px;
+      flex-shrink: 0;
+      padding: 18px 18px 18px 48px;
+      display: flex;
+      flex-direction: column;
+      z-index: 2;
+    }
+
+    .squad-section-title {
+      font-family: 'Oswald', sans-serif;
+      font-size: 10px;
+      letter-spacing: 5px;
+      color: #c9a84c;
+      font-weight: 500;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      flex-shrink: 0;
+    }
+
+    .squad-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .player-row {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, .05);
+      min-height: 0;
+    }
+
+    .player-row:last-child {
+      border-bottom: none;
+    }
+
+    .player-name {
+      font-family: 'Oswald', sans-serif;
+      font-size: 26px;
+      font-weight: 400;
+      color: #dde2f0;
+      flex: 1;
+      letter-spacing: 0.3px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    /* Badges — all same height, vertically centered */
+    .badge-c {
+      background: #c9a84c;
+      color: #000;
+      font-family: 'Oswald', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 26px;
+    }
+
+    .badge-vc {
+      background: transparent;
+      border: 1px solid #c9a84c;
+      color: #c9a84c;
+      font-family: 'Oswald', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 26px;
+    }
+
+    .badge-12 {
+      background: #0c1428;
+      border: 1px solid rgba(201, 168, 76, 0.25);
+      color: rgba(201, 168, 76, 0.5);
+      font-family: 'Oswald', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 3px;
+      flex-shrink: 0;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 26px;
+    }
+
+    /* PHOTO */
+    .photo-panel {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    .photo-img-wrap {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .photo-img-wrap.grabbing {
+      cursor: grabbing;
+    }
+
+    .photo-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      user-select: none;
+      -webkit-user-drag: none;
+      pointer-events: none;
+      will-change: transform;
+    }
+
+    .photo-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      z-index: 1;
+    }
+
+    .photo-placeholder p {
+      font-size: 12px;
+      color: #1e2840;
+    }
+
+    .photo-grad-left {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      background: linear-gradient(to right, #07090f 0%, rgba(7, 9, 15, .2) 18%, transparent 38%);
+    }
+
+    .photo-grad-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      pointer-events: none;
+      z-index: 2;
+      background: linear-gradient(to bottom, #090f22, transparent);
+    }
+
+    .photo-controls {
+      position: absolute;
+      bottom: 14px;
+      right: 12px;
+      z-index: 8;
+      display: none;
+      flex-direction: row;
+      gap: 6px;
+    }
+
+    .zoom-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background: rgba(7, 9, 18, 0.82);
+      border: 1px solid rgba(201, 168, 76, 0.35);
+      color: #c9a84c;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    .zoom-btn:hover {
+      background: rgba(201, 168, 76, 0.12);
+    }
+
+    /* ─── FOOTER ─── */
+    .poster-footer {
+      height: 108px;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 60px;
+      gap: 20px;
+    }
+
+    .footer-bg {
+      position: absolute;
+      inset: 0;
+      background: #05070c;
+      z-index: 0;
+    }
+
+    .footer-gold-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #c9a84c 36%, #c9a84c 64%, transparent);
+      z-index: 1;
+    }
+
+    .sponsor-slot {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 80px;
+    }
+
+    .sponsor-logo-img {
+      max-height: 68px;
+      max-width: 190px;
+      object-fit: contain;
+      display: block;
+    }
+
+    .sponsor-ph {
+      height: 68px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sponsor-ph span {
+      font-size: 8px;
+      color: #1a2236;
+      letter-spacing: 2px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-shell">
+
+    <!-- MOBILE TAB BAR (hidden on desktop via CSS) -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="mobileTab('edit')">✏️ Edit</button>
+      <button class="tab-btn" onclick="mobileTab('preview')">👁 Preview</button>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebarEl">
+      <div class="sidebar-title">⚡ CDCL POSTER</div>
+
+      <div>
+        <div class="section-label">Match Info</div>
+        <div class="input-group"><label>Team 1</label><input class="ctrl" id="team1" value="Gujarat Lions"
+            oninput="updatePoster()"></div>
+        <div class="input-group"><label>Team 2</label><input class="ctrl" id="team2" value="Mumbai Strikers"
+            oninput="updatePoster()"></div>
+        <div class="ctrl-row">
+          <div class="input-group"><label>Date</label><input class="ctrl" id="matchdate" value="May 24, 2026"
+              oninput="updatePoster()"></div>
+          <div class="input-group"><label>Time</label><input class="ctrl" id="matchtime" value="9:00 AM"
+              oninput="updatePoster()"></div>
+        </div>
+        <div class="input-group"><label>Ground</label><input class="ctrl" id="ground" value="Narendra Modi Stadium"
+            oninput="updatePoster()"></div>
+        <div class="input-group"><label>Format</label>
+          <select class="ctrl" id="matchformat" onchange="updatePoster()">
+            <option value="T35">T35</option>
+            <option value="T20">T20</option>
+            <option value="T20W">T20W</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Playing XI + 12th Man</div>
+        <div id="squad-editor"></div>
+      </div>
+
+      <div>
+        <div class="section-label">Player Photo</div>
+        <div class="upload-zone" onclick="document.getElementById('ppi').click()">
+          <input type="file" id="ppi" accept="image/*" onchange="handlePlayerPhoto(event)">
+          <p id="ppTxt">📷 Tap to upload · Drag to Pan · Pinch/Scroll to Zoom</p>
+          <img id="playerThumb" class="upload-thumb">
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Club Logo</div>
+        <div class="upload-zone" onclick="document.getElementById('logoI').click()">
+          <input type="file" id="logoI" accept="image/*" onchange="handleLogo(event)">
+          <p id="logoTxt">🏏 Tap to upload logo</p>
+          <img id="logoThumb" class="upload-thumb">
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Sponsor Logos — Persistent</div>
+        <div class="sponsor-grid">
+          <div>
+            <div class="upload-zone" onclick="document.getElementById('sp1').click()">
+              <input type="file" id="sp1" accept="image/*" onchange="handleSponsor(event,0)">
+              <p style="font-size:8px">Sponsor 1</p><img id="spT0" class="sp-thumb">
+            </div>
+          </div>
+          <div>
+            <div class="upload-zone" onclick="document.getElementById('sp2').click()">
+              <input type="file" id="sp2" accept="image/*" onchange="handleSponsor(event,1)">
+              <p style="font-size:8px">Sponsor 2</p><img id="spT1" class="sp-thumb">
+            </div>
+          </div>
+          <div>
+            <div class="upload-zone" onclick="document.getElementById('sp3').click()">
+              <input type="file" id="sp3" accept="image/*" onchange="handleSponsor(event,2)">
+              <p style="font-size:8px">Sponsor 3</p><img id="spT2" class="sp-thumb">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="download-btn" id="dlBtn" onclick="downloadPoster()">↓ Download JPEG</button>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="preview-area" id="previewEl">
+      <div class="poster-wrap" id="posterWrap">
+        <div id="poster">
+
+          <div class="bg-layer">
+            <canvas id="bgCanvas" width="1080" height="1350"
+              style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+          </div>
+
+          <!-- HEADER -->
+          <div class="poster-header">
+            <div class="hdr-bg"></div>
+            <div class="hdr-top-bar"></div>
+            <div class="hdr-logo-topleft" id="hdrLogoTopLeft"></div>
+            <div class="cdcl-label">CDCL LEAGUE</div>
+            <div class="match-sublabel" id="matchSubLabel">T35 OFFICIAL MATCHDAY</div>
+
+            <div class="vs-block">
+              <div class="team-col left">
+                <span class="team-name-text" id="posterTeam1" data-raw="GUJARAT LIONS">GUJARAT LIONS</span>
+              </div>
+              <div class="vs-pill">
+                <div class="vs-line"></div>
+                <div class="vs-text">VS</div>
+                <div class="vs-line"></div>
+              </div>
+              <div class="team-col right">
+                <span class="team-name-text" id="posterTeam2" data-raw="MUMBAI STRIKERS">MUMBAI STRIKERS</span>
+              </div>
+            </div>
+
+            <div class="hdr-details-strip">
+              <div class="hdr-detail-ground" id="groundLabel">NARENDRA MODI STADIUM</div>
+              <div class="hdr-detail-datetime" id="datetimeLabel">May 24, 2026 @ 9:00 AM</div>
+            </div>
+          </div>
+
+          <!-- MAIN -->
+          <div class="poster-main">
+            <div class="squad-panel">
+              <div class="squad-section-title">Playing XI</div>
+              <div class="squad-list" id="posterSquad"></div>
+            </div>
+            <div class="panel-divider"></div>
+            <div class="photo-panel" id="photoPanel">
+              <div class="photo-placeholder" id="photoPlaceholder">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#1e2840" stroke-width="1.5">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="M21 15l-5-5L5 21" />
+                </svg>
+                <p>Upload player photo</p>
+              </div>
+              <div class="photo-img-wrap" id="photoImgWrap" style="display:none">
+                <img id="posterPlayerImg" class="photo-img" draggable="false">
+              </div>
+              <div class="photo-grad-left"></div>
+              <div class="photo-grad-top"></div>
+              <div class="photo-controls" id="photoControls">
+                <button class="zoom-btn" onclick="bumpZoom(0.12)">+</button>
+                <button class="zoom-btn" onclick="bumpZoom(-0.12)">−</button>
+                <button class="zoom-btn" style="font-size:13px" onclick="resetView()">↺</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- FOOTER -->
+          <div class="poster-footer">
+            <div class="footer-bg"></div>
+            <div class="footer-gold-line"></div>
+            <div class="sponsor-slot" id="sp-poster-0">
+              <div class="sponsor-ph"><span>SPONSOR 1</span></div>
+            </div>
+            <div class="sponsor-slot" id="sp-poster-1">
+              <div class="sponsor-ph"><span>SPONSOR 2</span></div>
+            </div>
+            <div class="sponsor-slot" id="sp-poster-2">
+              <div class="sponsor-ph"><span>SPONSOR 3</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ═══════════════════════════════════════════════
+       MOBILE TAB SWITCHING
+       Only affects layout on screens ≤ 768px.
+       On desktop this function is a no-op.
+    ═══════════════════════════════════════════════ */
+    function mobileTab(tab) {
+      if (window.innerWidth > 768) return; // desktop: both always visible, do nothing
+      const sidebar = document.getElementById('sidebarEl');
+      const preview = document.getElementById('previewEl');
+      const btns = document.querySelectorAll('.tab-btn');
+      if (tab === 'edit') {
+        sidebar.classList.remove('mob-hidden');
+        preview.classList.add('mob-hidden');
+        btns[0].classList.add('active');
+        btns[1].classList.remove('active');
+      } else {
+        sidebar.classList.add('mob-hidden');
+        preview.classList.remove('mob-hidden');
+        btns[0].classList.remove('active');
+        btns[1].classList.add('active');
+        // Re-scale poster and re-fit team names when switching to preview
+        setTimeout(() => {
+          scalePoster();
+          requestAnimationFrame(scaleBothTeamNames);
+        }, 30);
+      }
+    }
+
+    /* ═══ CONSTANTS ═══ */
+    const HARDCODED_LOGO = '';
+    const HARDCODED_SPONSORS = ['', '', ''];
+
+    /* Column width at full 1080px:
+       1080 - 40px*2 padding - 70px vs-pill = 930px / 2 - 18px col-pad = 447px */
+    const EXPORT_COL_W = 447;
+    const GOLD = '#c9a84c';
+
+    const defaultSquad = [
+      { name: "Jay Shah", captain: true, vc: false, man12: false },
+      { name: "Gaurav Singh", captain: false, vc: true, man12: false },
+      { name: "Raj Kapadia", captain: false, vc: false, man12: false },
+      { name: "Kartavya Jadav", captain: false, vc: false, man12: false },
+      { name: "Chetan Viradya", captain: false, vc: false, man12: false },
+      { name: "Jalpan Talati", captain: false, vc: false, man12: false },
+      { name: "Akshay Kambholja", captain: false, vc: false, man12: false },
+      { name: "Jignesh Dave", captain: false, vc: false, man12: false },
+      { name: "Gaurav Shah", captain: false, vc: false, man12: false },
+      { name: "Chirag Patel", captain: false, vc: false, man12: false },
+      { name: "Naresh Dhameliya", captain: false, vc: false, man12: false },
+      { name: "Darsh Shah", captain: false, vc: false, man12: true }
+    ];
+
+    let squad = JSON.parse(localStorage.getItem('gl_squad') || JSON.stringify(defaultSquad));
+    let sponsorData = JSON.parse(localStorage.getItem('gl_sponsors') || JSON.stringify(HARDCODED_SPONSORS));
+    let logoData = localStorage.getItem('gl_logo') || HARDCODED_LOGO;
+
+    function saveSquad() { localStorage.setItem('gl_squad', JSON.stringify(squad)); }
+    function saveSponsors() { localStorage.setItem('gl_sponsors', JSON.stringify(sponsorData)); }
+
+    /* ═══ NAME SPLITTING ═══ */
+    function splitIntoLines(name) {
+      const words = name.trim().split(/\s+/);
+      if (words.length <= 2) return [words.join(' ')];
+      return [words.slice(0, 2).join(' '), words.slice(2).join(' ')];
+    }
+
+    function applyTeamNameLines(el, name, fs) {
+      const lines = splitIntoLines(name);
+      el.style.fontSize = fs + 'px';
+      el.innerHTML = lines.map(l => `<span class="team-name-line">${l}</span>`).join('');
+    }
+
+    /* Probe element for measuring text width */
+    let _probe = null;
+    function measureLineWidth(text, fs) {
+      if (!_probe) {
+        _probe = document.createElement('span');
+        _probe.style.cssText =
+          'position:fixed;visibility:hidden;top:-9999px;left:-9999px;' +
+          'white-space:nowrap;font-family:"Oswald",sans-serif;font-weight:700;' +
+          'letter-spacing:3px;text-transform:uppercase;';
+        document.body.appendChild(_probe);
+      }
+      _probe.style.fontSize = fs + 'px';
+      _probe.textContent = text;
+      return _probe.offsetWidth;
+    }
+
+    function bestFontSize(name1, name2, colW) {
+      const lines1 = splitIntoLines(name1);
+      const lines2 = splitIntoLines(name2);
+      let lo = 28, hi = 100, best = 52;
+      for (let i = 0; i < 16; i++) {
+        const mid = Math.floor((lo + hi) / 2);
+        const maxW = Math.max(...[...lines1, ...lines2].map(l => measureLineWidth(l, mid)));
+        if (maxW <= colW) { best = mid; lo = mid + 1; }
+        else { hi = mid - 1; }
+      }
+      return best;
+    }
+
+    function scaleBothTeamNames() {
+      const el1 = document.getElementById('posterTeam1');
+      const el2 = document.getElementById('posterTeam2');
+      if (!el1 || !el2) return;
+
+      const name1 = el1.dataset.raw || el1.textContent.trim();
+      const name2 = el2.dataset.raw || el2.textContent.trim();
+      el1.dataset.raw = name1;
+      el2.dataset.raw = name2;
+
+      const col1 = el1.parentElement;
+      const colW = (col1 && col1.clientWidth > 80) ? col1.clientWidth - 18 : EXPORT_COL_W;
+
+      const fs = bestFontSize(name1, name2, colW);
+      applyTeamNameLines(el1, name1, fs);
+      applyTeamNameLines(el2, name2, fs);
+    }
+
+    /* ═══ SQUAD EDITOR ═══ */
+    function buildSquadEditor() {
+      const el = document.getElementById('squad-editor');
+      el.innerHTML = '';
+      squad.forEach((p, i) => {
+        const row = document.createElement('div');
+        row.className = 'squad-row';
+        row.innerHTML = `
+      <span class="squad-num">${i + 1}</span>
+      <input class="squad-input" value="${p.name}"
+        oninput="squad[${i}].name=this.value;saveSquad();renderSquad()"
+        placeholder="Player ${i + 1}">
+      <button class="role-btn ${p.captain ? 'c-active' : ''}" onclick="toggleRole(${i},'captain')">C</button>
+      <button class="role-btn ${p.vc ? 'vc-active' : ''}" onclick="toggleRole(${i},'vc')">VC</button>
+      ${i === 11 ? '<span style="font-size:7px;color:#c9a84c;flex-shrink:0">12</span>' : ''}
+    `;
+        el.appendChild(row);
+      });
+    }
+
+    function toggleRole(idx, role) {
+      if (role === 'captain') squad.forEach((p, i) => p.captain = (i === idx ? !squad[idx].captain : false));
+      else squad.forEach((p, i) => p.vc = (i === idx ? !squad[idx].vc : false));
+      saveSquad(); buildSquadEditor(); renderSquad();
+    }
+
+    function renderSquad() {
+      const sl = document.getElementById('posterSquad');
+      sl.innerHTML = '';
+      squad.forEach((p, i) => {
+        const row = document.createElement('div');
+        row.className = 'player-row';
+        let badge = '';
+        if (p.captain) badge = '<span class="badge-c">C</span>';
+        else if (p.vc) badge = '<span class="badge-vc">VC</span>';
+        else if (i === 11 || p.man12) badge = '<span class="badge-12">12TH</span>';
+        row.innerHTML = `<div class="player-name">${p.name || '—'}</div>${badge}`;
+        sl.appendChild(row);
+      });
+    }
+
+    /* ═══ UPDATE POSTER ═══ */
+    function updatePoster() {
+      const t1 = (document.getElementById('team1').value || 'Team 1').toUpperCase();
+      const t2 = (document.getElementById('team2').value || 'Team 2').toUpperCase();
+      const ground = document.getElementById('ground').value || '';
+      const date = document.getElementById('matchdate').value || '';
+      const time = document.getElementById('matchtime').value || '';
+      const format = document.getElementById('matchformat').value || 'T35';
+
+      const el1 = document.getElementById('posterTeam1');
+      const el2 = document.getElementById('posterTeam2');
+      el1.dataset.raw = t1; el2.dataset.raw = t2;
+      el1.textContent = t1; el2.textContent = t2;
+
+      document.getElementById('groundLabel').textContent = ground.toUpperCase();
+      document.getElementById('datetimeLabel').textContent = `${date} @ ${time}`;
+      document.getElementById('matchSubLabel').textContent = `${format} OFFICIAL MATCHDAY`;
+
+      requestAnimationFrame(scaleBothTeamNames);
+      renderSquad();
+    }
+
+    /* ═══ PHOTO INTERACTION ═══ */
+    let state = { tx: 0, ty: 0, scale: 1, dragging: false, lastX: 0, lastY: 0, pinching: false, lastDist: 0, lastMidX: 0, lastMidY: 0 };
+
+    function applyTransform() {
+      const img = document.getElementById('posterPlayerImg');
+      if (img) img.style.transform = `translate(${state.tx}px,${state.ty}px) scale(${state.scale})`;
+    }
+
+    function bumpZoom(delta) {
+      const wrap = document.getElementById('photoImgWrap');
+      zoomAround(wrap.clientWidth / 2, wrap.clientHeight / 2, delta);
+    }
+
+    function zoomAround(cx, cy, delta) {
+      const ns = Math.max(0.4, Math.min(6, state.scale + delta));
+      const r = ns / state.scale;
+      state.tx = cx + (state.tx - cx) * r;
+      state.ty = cy + (state.ty - cy) * r;
+      state.scale = ns;
+      applyTransform();
+    }
+
+    function resetView() {
+      const img = document.getElementById('posterPlayerImg');
+      const wrap = document.getElementById('photoImgWrap');
+      if (!img || !wrap) return;
+      const nw = img.naturalWidth || wrap.clientWidth;
+      const nh = img.naturalHeight || wrap.clientHeight;
+      let s = wrap.clientWidth / nw;
+      if (nh * s < wrap.clientHeight) s = wrap.clientHeight / nh;
+      state.scale = s;
+      state.tx = (wrap.clientWidth - nw * s) / 2;
+      state.ty = 0;
+      applyTransform();
+    }
+
+    function initPhotoInteraction() {
+      const wrap = document.getElementById('photoImgWrap');
+      wrap.addEventListener('mousedown', e => {
+        state.dragging = true; state.lastX = e.clientX; state.lastY = e.clientY;
+        wrap.classList.add('grabbing'); e.preventDefault();
+      });
+      window.addEventListener('mousemove', e => {
+        if (!state.dragging) return;
+        state.tx += e.clientX - state.lastX; state.ty += e.clientY - state.lastY;
+        state.lastX = e.clientX; state.lastY = e.clientY; applyTransform();
+      });
+      window.addEventListener('mouseup', () => { state.dragging = false; wrap.classList.remove('grabbing'); });
+      wrap.addEventListener('wheel', e => {
+        e.preventDefault();
+        const r = wrap.getBoundingClientRect();
+        zoomAround(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 0.1 : -0.1);
+      }, { passive: false });
+      wrap.addEventListener('touchstart', e => {
+        if (e.touches.length === 1) { state.pinching = false; state.lastX = e.touches[0].clientX; state.lastY = e.touches[0].clientY; }
+        else if (e.touches.length === 2) {
+          state.pinching = true;
+          const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+          state.lastDist = Math.hypot(dx, dy);
+          state.lastMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          state.lastMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        }
+        e.preventDefault();
+      }, { passive: false });
+      wrap.addEventListener('touchmove', e => {
+        e.preventDefault();
+        if (e.touches.length === 1 && !state.pinching) {
+          state.tx += e.touches[0].clientX - state.lastX; state.ty += e.touches[0].clientY - state.lastY;
+          state.lastX = e.touches[0].clientX; state.lastY = e.touches[0].clientY; applyTransform();
+        } else if (e.touches.length === 2) {
+          const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY;
+          const dist = Math.hypot(dx, dy);
+          const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2, midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          const r = wrap.getBoundingClientRect();
+          zoomAround(midX - r.left, midY - r.top, (dist / state.lastDist - 1) * state.scale);
+          state.tx += midX - state.lastMidX; state.ty += midY - state.lastMidY; applyTransform();
+          state.lastDist = dist; state.lastMidX = midX; state.lastMidY = midY;
+        }
+      }, { passive: false });
+      wrap.addEventListener('touchend', e => { if (e.touches.length < 2) state.pinching = false; }, { passive: true });
+    }
+
+    function handlePlayerPhoto(e) {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => {
+        const src = ev.target.result;
+        const img = document.getElementById('posterPlayerImg');
+        img.src = src;
+        img.onload = () => { resetView(); document.getElementById('photoPlaceholder').style.display = 'none'; document.getElementById('photoImgWrap').style.display = 'block'; document.getElementById('photoControls').style.display = 'flex'; };
+        document.getElementById('playerThumb').src = src; document.getElementById('playerThumb').style.display = 'block';
+        document.getElementById('ppTxt').style.display = 'none';
+      };
+      r.readAsDataURL(f);
+    }
+
+    /* ═══ LOGO ═══ */
+    function handleLogo(e) {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => { logoData = ev.target.result; localStorage.setItem('gl_logo', logoData); applyLogoToUI(logoData); document.getElementById('logoThumb').src = logoData; document.getElementById('logoThumb').style.display = 'block'; document.getElementById('logoTxt').style.display = 'none'; };
+      r.readAsDataURL(f);
+    }
+    function applyLogoToUI(src) {
+      document.getElementById('hdrLogoTopLeft').innerHTML = `<img src="${src}">`;
+    }
+
+    /* ═══ SPONSORS ═══ */
+    function handleSponsor(e, idx) {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => { sponsorData[idx] = ev.target.result; saveSponsors(); document.getElementById(`spT${idx}`).src = ev.target.result; document.getElementById(`spT${idx}`).style.display = 'block'; setSponsorPoster(idx, ev.target.result); };
+      r.readAsDataURL(f);
+    }
+    function setSponsorPoster(idx, src) {
+      document.getElementById(`sp-poster-${idx}`).innerHTML = `<img src="${src}" class="sponsor-logo-img">`;
+    }
+    function restorePersistedData() {
+      if (logoData) applyLogoToUI(logoData);
+      sponsorData.forEach((src, idx) => { if (src) { document.getElementById(`spT${idx}`).src = src; document.getElementById(`spT${idx}`).style.display = 'block'; setSponsorPoster(idx, src); } });
+    }
+
+    /* ═══ BACKGROUND CANVAS ═══ */
+    function drawBackgroundOnCanvas(c) {
+      if (!c) return;
+      const ctx = c.getContext('2d'); const cW = 1080, cH = 1350;
+      const bg = ctx.createLinearGradient(0, 0, cW, cH);
+      bg.addColorStop(0, '#0c1128'); bg.addColorStop(0.5, '#07090f'); bg.addColorStop(1, '#090b16');
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, cW, cH);
+      const gL = ctx.createRadialGradient(cW * .12, cH * .52, 0, cW * .12, cH * .52, cW * .52);
+      gL.addColorStop(0, 'rgba(26,45,106,0.55)'); gL.addColorStop(1, 'rgba(7,9,15,0)');
+      ctx.fillStyle = gL; ctx.fillRect(0, 0, cW, cH);
+      const gR = ctx.createRadialGradient(cW * .88, cH * .42, 0, cW * .88, cH * .42, cW * .48);
+      gR.addColorStop(0, 'rgba(26,45,106,0.20)'); gR.addColorStop(1, 'rgba(7,9,15,0)');
+      ctx.fillStyle = gR; ctx.fillRect(0, 0, cW, cH);
+      ctx.save(); ctx.globalAlpha = 0.4; ctx.strokeStyle = '#16204a'; ctx.lineWidth = 0.9;
+      [[-200, 0, 600, cH], [0, 0, 800, cH], [200, 0, 1000, cH], [400, 0, 1200, cH], [600, 0, 1400, cH], [800, 0, 1600, cH], [1000, 0, 1800, cH]]
+        .forEach(([x1, y1, x2, y2]) => { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); });
+      ctx.restore();
+      ctx.save(); ctx.globalAlpha = 0.8; ctx.fillStyle = '#07080f';
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(240, 0); ctx.lineTo(0, 400); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 0.65;
+      ctx.beginPath(); ctx.moveTo(cW, 960); ctx.lineTo(cW, cH); ctx.lineTo(580, cH); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      const gl1 = ctx.createLinearGradient(0, 0, cW, 0); gl1.addColorStop(0, 'rgba(201,168,76,0)'); gl1.addColorStop(.5, 'rgba(201,168,76,0.55)'); gl1.addColorStop(1, 'rgba(201,168,76,0)');
+      ctx.strokeStyle = gl1; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(0, 312); ctx.lineTo(cW, 312); ctx.stroke();
+      const gl2 = ctx.createLinearGradient(0, 0, cW, 0); gl2.addColorStop(0, 'rgba(201,168,76,0)'); gl2.addColorStop(.5, 'rgba(201,168,76,0.55)'); gl2.addColorStop(1, 'rgba(201,168,76,0)');
+      ctx.strokeStyle = gl2; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(0, 1243); ctx.lineTo(cW, 1243); ctx.stroke();
+      ctx.save(); ctx.globalAlpha = 0.32; ctx.fillStyle = '#16204a';
+      for (let row = 0; row < 10; row++) { const cy = 480 + row * 78;[76, 152, 228, 304].forEach(cx => { ctx.beginPath(); ctx.arc(cx, cy, 1.5, 0, Math.PI * 2); ctx.fill(); }); }
+      ctx.restore();
+      ctx.save(); ctx.globalAlpha = 0.4; ctx.strokeStyle = '#c9a84c'; ctx.lineWidth = 1.5; ctx.lineCap = 'square';
+      [[36, 36, 88, 36, 36, 36, 36, 88], [1044, 36, 992, 36, 1044, 36, 1044, 88], [36, 1314, 88, 1314, 36, 1314, 36, 1262], [1044, 1314, 992, 1314, 1044, 1314, 1044, 1262]]
+        .forEach(([x1, y1, x2, y2, x3, y3, x4, y4]) => { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x3, y3); ctx.lineTo(x4, y4); ctx.stroke(); });
+      ctx.restore();
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CANVAS RENDERER — draws the entire poster programmatically.
+       Uses Canvas 2D API which always uses browser-loaded fonts.
+       No dom-to-image, no html2canvas, no font serialisation bugs.
+    ═══════════════════════════════════════════════════════════════ */
+
+    const W = 1080, H = 1350;
+    const GOLD_DIM = 'rgba(201,168,76,0.4)';
+    const DARK = '#07090f';
+    const HDR_H = 310;
+    const FTR_H = 108;
+    const SQUAD_W = 370;
+
+    /* ── helpers ── */
+    function ctx_roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+      ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+      ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+      ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+      ctx.closePath();
+    }
+
+    function measureOswald(ctx, text, size, weight = '700') {
+      ctx.font = `${weight} ${size}px "Oswald", sans-serif`;
+      return ctx.measureText(text).width;
+    }
+
+    /* Split name into max 2 lines: words 0+1 on line 1, rest on line 2 */
+    function splitName(name) {
+      const w = name.trim().toUpperCase().split(/\s+/);
+      if (w.length <= 2) return [w.join(' ')];
+      return [w.slice(0, 2).join(' '), w.slice(2).join(' ')];
+    }
+
+    /* Find font size so widest line of both names fits colW */
+    function canvasBestFS(ctx, n1, n2, colW) {
+      const lines = [...splitName(n1), ...splitName(n2)];
+      let lo = 20, hi = 100, best = 40;
+      for (let i = 0; i < 16; i++) {
+        const mid = Math.floor((lo + hi) / 2);
+        ctx.font = `700 ${mid}px "Oswald", sans-serif`;
+        const maxW = Math.max(...lines.map(l => ctx.measureText(l).width));
+        if (maxW <= colW) { best = mid; lo = mid + 1; } else hi = mid - 1;
+      }
+      return best;
+    }
+
+    /* Load an image from a data URL → HTMLImageElement */
+    function loadImg(src) {
+      return new Promise((res, rej) => {
+        if (!src) return res(null);
+        const img = new Image();
+        img.onload = () => res(img);
+        img.onerror = () => res(null);
+        img.src = src;
+      });
+    }
+
+    /* canvasDrawBG — alias for drawBackgroundOnCanvas used in download */
+    function canvasDrawBG(ctx) {
+      const tmp = document.createElement('canvas');
+      tmp.width = W; tmp.height = H;
+      drawBackgroundOnCanvas(tmp);
+      ctx.drawImage(tmp, 0, 0);
+    }
+
+    /* Draw header */
+    function canvasDrawHeader(ctx, t1, t2, ground, datetime, logoImg, format) {
+      const hg = ctx.createLinearGradient(0, 0, 0, HDR_H);
+      hg.addColorStop(0, '#090f22'); hg.addColorStop(0.55, '#090f22'); hg.addColorStop(1, 'rgba(9,15,34,0)');
+      ctx.fillStyle = hg; ctx.fillRect(0, 0, W, HDR_H);
+
+      const tg = ctx.createLinearGradient(0, 0, W, 0);
+      tg.addColorStop(0, 'rgba(201,168,76,0)'); tg.addColorStop(0.22, '#c9a84c'); tg.addColorStop(0.5, '#f0d878'); tg.addColorStop(0.78, '#c9a84c'); tg.addColorStop(1, 'rgba(201,168,76,0)');
+      ctx.fillStyle = tg; ctx.fillRect(0, 0, W, 5);
+
+      if (logoImg) {
+        const lBox = 108, lX = 24, lY = 18;
+        const nw = logoImg.naturalWidth, nh = logoImg.naturalHeight;
+        const scale = Math.min(lBox / nw, lBox / nh);
+        const dw = nw * scale, dh = nh * scale;
+        const dx = lX + (lBox - dw) / 2, dy = lY + (lBox - dh) / 2;
+        ctx.save();
+        ctx.shadowColor = 'rgba(201,168,76,0.65)'; ctx.shadowBlur = 16;
+        ctx.drawImage(logoImg, dx, dy, dw, dh);
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.font = '600 18px "Oswald", sans-serif';
+      ctx.fillStyle = GOLD; ctx.textAlign = 'center';
+      ctx.fillText('CDCL LEAGUE', W / 2, 36);
+      ctx.font = '400 16px "Oswald", sans-serif';
+      ctx.fillStyle = 'rgba(201,168,76,0.8)';
+      ctx.fillText(`${format || 'T35'} OFFICIAL MATCHDAY`, W / 2, 58);
+      ctx.restore();
+
+      const LOGO_END = 24 + 108 + 20;
+      const VS_HALF = 35;
+      const R_PAD = 40;
+      const vsX = W / 2;
+
+      const leftColStart = LOGO_END;
+      const leftColEnd = vsX - VS_HALF;
+      const leftColW = leftColEnd - leftColStart;
+      const leftColCX = leftColStart + leftColW / 2;
+
+      const rightColStart = vsX + VS_HALF;
+      const rightColEnd = W - R_PAD;
+      const rightColW = rightColEnd - rightColStart;
+      const rightColCX = rightColStart + rightColW / 2;
+
+      const colWForFont = Math.min(leftColW, rightColW);
+
+      const vsZoneTop = 56, vsZoneBot = HDR_H - 72;
+      const vsZoneMid = vsZoneTop + (vsZoneBot - vsZoneTop) / 2;
+
+      const t1up = t1.toUpperCase(), t2up = t2.toUpperCase();
+      const fs = canvasBestFS(ctx, t1up, t2up, colWForFont);
+      const lines1 = splitName(t1up), lines2 = splitName(t2up);
+      const lineH = fs * 1.1;
+
+      ctx.save();
+      ctx.font = `700 ${fs}px "Oswald", sans-serif`;
+      ctx.fillStyle = GOLD; ctx.textAlign = 'center';
+
+      const totalH1 = lines1.length * lineH;
+      lines1.forEach((line, i) => {
+        ctx.fillText(line, leftColCX, vsZoneMid - totalH1 / 2 + i * lineH + fs * 0.82);
+      });
+      const totalH2 = lines2.length * lineH;
+      lines2.forEach((line, i) => {
+        ctx.fillText(line, rightColCX, vsZoneMid - totalH2 / 2 + i * lineH + fs * 0.82);
+      });
+      ctx.restore();
+
+      ctx.save();
+      const lineG = ctx.createLinearGradient(0, vsZoneMid - 50, 0, vsZoneMid + 50);
+      lineG.addColorStop(0, 'rgba(201,168,76,0)'); lineG.addColorStop(0.5, '#c9a84c'); lineG.addColorStop(1, 'rgba(201,168,76,0)');
+      ctx.strokeStyle = lineG; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(vsX, vsZoneMid - 44); ctx.lineTo(vsX, vsZoneMid - 16); ctx.stroke();
+      ctx.font = '700 22px "Oswald", sans-serif';
+      ctx.fillStyle = GOLD; ctx.textAlign = 'center';
+      ctx.fillText('VS', vsX, vsZoneMid + 8);
+      ctx.beginPath(); ctx.moveTo(vsX, vsZoneMid + 16); ctx.lineTo(vsX, vsZoneMid + 44); ctx.stroke();
+      ctx.restore();
+
+      const detY = HDR_H - 52;
+      ctx.save(); ctx.textAlign = 'center';
+      ctx.font = '600 20px "Oswald", sans-serif'; ctx.fillStyle = GOLD;
+      ctx.fillText(ground.toUpperCase(), W / 2, detY);
+      ctx.font = '400 18px "Oswald", sans-serif'; ctx.fillStyle = 'rgba(201,168,76,0.82)';
+      ctx.fillText(datetime, W / 2, detY + 26);
+      ctx.restore();
+    }
+
+    /* Draw squad */
+    function canvasDrawSquad(ctx, squadList) {
+      const PANEL_L = 48, PANEL_R = SQUAD_W - 18;
+      const MAIN_TOP = HDR_H, MAIN_BOT = H - FTR_H;
+      const TITLE_Y = MAIN_TOP + 28;
+      const LIST_TOP = TITLE_Y + 20;
+      const LIST_BOT = MAIN_BOT - 10;
+      const rowH = (LIST_BOT - LIST_TOP) / 12;
+
+      ctx.save();
+      ctx.font = '500 10px "Oswald", sans-serif';
+      ctx.fillStyle = GOLD; ctx.textAlign = 'left';
+      ctx.letterSpacing = '5px';
+      ctx.fillText('P L A Y I N G   X I', PANEL_L, TITLE_Y);
+      ctx.restore();
+
+      const dg = ctx.createLinearGradient(0, MAIN_TOP, 0, MAIN_BOT);
+      dg.addColorStop(0, 'rgba(201,168,76,0)'); dg.addColorStop(0.1, 'rgba(201,168,76,0.3)'); dg.addColorStop(0.9, 'rgba(201,168,76,0.3)'); dg.addColorStop(1, 'rgba(201,168,76,0)');
+      ctx.strokeStyle = dg; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(SQUAD_W, MAIN_TOP); ctx.lineTo(SQUAD_W, MAIN_BOT); ctx.stroke();
+
+      squadList.forEach((p, i) => {
+        const rowTop = LIST_TOP + i * rowH;
+        const rowMid = rowTop + rowH / 2;
+
+        if (i > 0) {
+          ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(PANEL_L, rowTop); ctx.lineTo(PANEL_R, rowTop); ctx.stroke();
+          ctx.restore();
+        }
+
+        ctx.save();
+        ctx.font = '400 26px "Oswald", sans-serif';
+        ctx.fillStyle = '#dde2f0'; ctx.textAlign = 'left';
+        ctx.fillText(p.name || '—', PANEL_L, rowMid + 9);
+        ctx.restore();
+
+        if (p.captain || p.vc || i === 11 || p.man12) {
+          const BADGE_W = 46, BADGE_H = 26, BADGE_X = PANEL_R - BADGE_W, BADGE_Y = rowMid - 13, BR = 3;
+          const label = p.captain ? 'C' : p.vc ? 'VC' : '12TH';
+          ctx.save();
+          if (p.captain) {
+            ctx.fillStyle = GOLD;
+            ctx_roundRect(ctx, BADGE_X, BADGE_Y, BADGE_W, BADGE_H, BR); ctx.fill();
+            ctx.font = '700 11px "Oswald",sans-serif'; ctx.fillStyle = '#000';
+          } else if (p.vc) {
+            ctx_roundRect(ctx, BADGE_X, BADGE_Y, BADGE_W, BADGE_H, BR); ctx.stroke();
+            ctx.strokeStyle = GOLD; ctx.lineWidth = 1;
+            ctx_roundRect(ctx, BADGE_X, BADGE_Y, BADGE_W, BADGE_H, BR); ctx.stroke();
+            ctx.font = '700 11px "Oswald",sans-serif'; ctx.fillStyle = GOLD;
+          } else {
+            ctx.strokeStyle = 'rgba(201,168,76,0.25)'; ctx.lineWidth = 1;
+            ctx.fillStyle = '#0c1428';
+            ctx_roundRect(ctx, BADGE_X, BADGE_Y, BADGE_W, BADGE_H, BR); ctx.fill(); ctx.stroke();
+            ctx.font = '700 11px "Oswald",sans-serif'; ctx.fillStyle = 'rgba(201,168,76,0.5)';
+          }
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(label, BADGE_X + BADGE_W / 2, BADGE_Y + BADGE_H / 2);
+          ctx.restore();
+        }
+      });
+    }
+
+    /* Draw player photo with gradient overlay */
+    function canvasDrawPhoto(ctx, photoImg, tx, ty, scale) {
+      const PX = SQUAD_W + 1, PY = HDR_H;
+      const photoW = W - PX, photoH = H - HDR_H - FTR_H;
+
+      ctx.save();
+      ctx.beginPath(); ctx.rect(PX, PY, photoW, photoH); ctx.clip();
+
+      if (photoImg) {
+        ctx.drawImage(photoImg,
+          tx + PX, ty + PY,
+          photoImg.naturalWidth * scale,
+          photoImg.naturalHeight * scale
+        );
+      }
+
+      const lg = ctx.createLinearGradient(PX, 0, PX + photoW * 0.45, 0);
+      lg.addColorStop(0, DARK); lg.addColorStop(0.22, 'rgba(7,9,15,0.22)'); lg.addColorStop(0.45, 'rgba(7,9,15,0)');
+      ctx.fillStyle = lg; ctx.fillRect(PX, PY, photoW, photoH);
+
+      const tg = ctx.createLinearGradient(0, PY, 0, PY + 48);
+      tg.addColorStop(0, '#090f22'); tg.addColorStop(1, 'rgba(9,15,34,0)');
+      ctx.fillStyle = tg; ctx.fillRect(PX, PY, photoW, 48);
+
+      ctx.restore();
+    }
+
+    /* Draw footer with sponsor logos */
+    function canvasDrawFooter(ctx, sponsorImgs) {
+      const FY = H - FTR_H;
+
+      ctx.fillStyle = '#05070c'; ctx.fillRect(0, FY, W, FTR_H);
+
+      const fg = ctx.createLinearGradient(0, 0, W, 0);
+      fg.addColorStop(0, 'rgba(201,168,76,0)'); fg.addColorStop(0.36, '#c9a84c'); fg.addColorStop(0.64, '#c9a84c'); fg.addColorStop(1, 'rgba(201,168,76,0)');
+      ctx.strokeStyle = fg; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, FY); ctx.lineTo(W, FY); ctx.stroke();
+
+      const slotW = W / 3;
+      sponsorImgs.forEach((img, i) => {
+        if (!img) return;
+        const slotX = i * slotW;
+        const maxH = 68, maxW = slotW - 40;
+        const ratW = maxW / img.naturalWidth, ratH = maxH / img.naturalHeight;
+        const rat = Math.min(ratW, ratH, 1);
+        const dw = img.naturalWidth * rat, dh = img.naturalHeight * rat;
+        const dx = slotX + (slotW - dw) / 2;
+        const dy = FY + (FTR_H - dh) / 2;
+        ctx.drawImage(img, dx, dy, dw, dh);
+      });
+    }
+
+    /* ══ MAIN EXPORT FUNCTION ══ */
+    async function downloadPoster() {
+      const btn = document.getElementById('dlBtn');
+      btn.disabled = true; btn.textContent = 'LOADING…';
+      document.getElementById('photoControls').style.display = 'none';
+
+      await document.fonts.ready;
+
+      const logoSrc = logoData;
+      const photoEl = document.getElementById('posterPlayerImg');
+      const photoSrc = photoEl?.src && photoEl.src !== window.location.href ? photoEl.src : null;
+
+      btn.textContent = 'RENDERING…';
+
+      const [logoImg, photoImg, sp0, sp1, sp2] = await Promise.all([
+        loadImg(logoSrc),
+        loadImg(photoSrc),
+        loadImg(sponsorData[0]),
+        loadImg(sponsorData[1]),
+        loadImg(sponsorData[2]),
+      ]);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      const t1 = document.getElementById('team1').value || 'Team 1';
+      const t2 = document.getElementById('team2').value || 'Team 2';
+      const ground = document.getElementById('ground').value || '';
+      const date = document.getElementById('matchdate').value || '';
+      const time = document.getElementById('matchtime').value || '';
+      const format = document.getElementById('matchformat').value || 'T35';
+      const datetime = `${date} @ ${time}`;
+
+      canvasDrawBG(ctx);
+      canvasDrawHeader(ctx, t1, t2, ground, datetime, logoImg, format);
+      canvasDrawPhoto(ctx, photoImg, state.tx, state.ty, state.scale);
+      canvasDrawSquad(ctx, squad);
+      canvasDrawFooter(ctx, [sp0, sp1, sp2]);
+
+      canvas.toBlob(blob => {
+        const a = document.createElement('a');
+        a.download = `cdcl-matchday-${Date.now()}.jpg`;
+        a.href = URL.createObjectURL(blob);
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+
+        const pw = document.getElementById('photoImgWrap');
+        if (pw && pw.style.display !== 'none') document.getElementById('photoControls').style.display = 'flex';
+        btn.disabled = false; btn.textContent = '↓ Download JPEG';
+      }, 'image/jpeg', 1.00);
+    }
+
+    /* ═══ SCALE POSTER TO PREVIEW ═══ */
+    function scalePoster() {
+      const wrap = document.getElementById('posterWrap');
+      const area = document.getElementById('previewEl');
+      if (!area || area.classList.contains('mob-hidden')) return;
+      const aw = area.clientWidth - 24, ah = area.clientHeight - 24;
+      const scale = Math.min(aw / 1080, ah / 1350, 1);
+      wrap.style.transform = `scale(${scale})`;
+      wrap.style.marginBottom = `${-(1350 * (1 - scale))}px`;
+      wrap.style.marginRight = `${-(1080 * (1 - scale))}px`;
+    }
+
+    window.addEventListener('resize', () => {
+      scalePoster();
+      requestAnimationFrame(scaleBothTeamNames);
+    });
+
+    /* ═══ INIT ═══ */
+    drawBackgroundOnCanvas(document.getElementById('bgCanvas'));
+    initPhotoInteraction();
+    buildSquadEditor();
+    updatePoster();
+    restorePersistedData();
+    setTimeout(scalePoster, 80);
+  </script>
+</body>
+
+</html>
